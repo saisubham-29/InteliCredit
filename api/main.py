@@ -140,6 +140,62 @@ async def get_risk_report(company_id: str):
     return {"company_id": company_id, "risk_report": analysis["risk_report"]}
 
 
+@app.get("/research-details/{company_id}")
+async def get_research_details(company_id: str):
+    """Get detailed research with news sources for officer review"""
+    analysis = get_analysis(company_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="No analysis found")
+    
+    research = analysis.get("research", {})
+    
+    return {
+        "company_id": company_id,
+        "news_articles": research.get("news_hits", []),
+        "sector_outlook": research.get("sector_outlook", ""),
+        "risk_heatmap": research.get("risk_heatmap", {}),
+        "ai_analysis": research.get("ai_analysis", {}),
+        "web_crawl_stats": research.get("web_crawl_stats", {}),
+        "mode": research.get("mode", "basic")
+    }
+
+
+@app.get("/explainability/{company_id}")
+async def get_decision_explainability(company_id: str):
+    """Get complete decision explainability chain"""
+    analysis = get_analysis(company_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="No analysis found")
+    
+    risk_report = analysis.get("risk_report", {})
+    ml_decision = risk_report.get("ml_decision", {})
+    
+    return {
+        "company_id": company_id,
+        "final_decision": ml_decision.get("final_decision", "N/A"),
+        "decision_reason": ml_decision.get("reason", "N/A"),
+        "probability_of_default": ml_decision.get("probability_of_default", 0),
+        "risk_class": ml_decision.get("risk_class", "Unknown"),
+        "five_cs_breakdown": {
+            "character": risk_report.get("character", {}),
+            "capacity": risk_report.get("capacity", {}),
+            "capital": risk_report.get("capital", {}),
+            "collateral": risk_report.get("collateral", {}),
+            "conditions": risk_report.get("conditions", {})
+        },
+        "ml_features_used": {
+            "current_ratio": analysis.get("financials", {}).get("current_ratio"),
+            "debt_to_equity": analysis.get("financials", {}).get("debt_to_equity"),
+            "interest_coverage": analysis.get("financials", {}).get("interest_coverage"),
+            "roe": analysis.get("financials", {}).get("roe"),
+            "operating_margin": analysis.get("financials", {}).get("operating_margin")
+        },
+        "evidence": risk_report.get("evidence", {}),
+        "conditions": ml_decision.get("conditions", []),
+        "pricing_breakdown": ml_decision.get("pricing", {})
+    }
+
+
 @app.get("/download-cam/{company_id}")
 async def download_cam(company_id: str):
     analysis = get_analysis(company_id)
