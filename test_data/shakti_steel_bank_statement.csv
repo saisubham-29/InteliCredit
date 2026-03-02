@@ -1,0 +1,28 @@
+Date,Transaction_Type,Debit,Credit,Balance,Narration
+2025-01-05,Credit,,2850000,2850000,Customer Payment - ABC Industries
+2025-01-08,Debit,450000,,2400000,Supplier Payment - Raw Material
+2025-01-12,Credit,,1250000,3650000,Export Proceeds - Dubai Client
+2025-01-15,Debit,680000,,2970000,Salary & Wages
+2025-01-18,Credit,,3200000,6170000,Customer Payment - XYZ Corp
+2025-01-22,Debit,1850000,,4320000,Machinery Purchase
+2025-01-25,Debit,125000,,4195000,Electricity Bill
+2025-01-28,Credit,,2100000,6295000,Domestic Sales - Delhi
+2025-02-02,Debit,950000,,5345000,Raw Material Purchase
+2025-02-05,Credit,,1800000,7145000,Customer Payment - PQR Ltd
+2025-02-08,Debit,85000,,7060000,GST Payment
+2025-02-12,Credit,,2450000,9510000,Export Proceeds - Singapore
+2025-02-15,Debit,680000,,8830000,Salary & Wages
+2025-02-18,Debit,350000,,8480000,Loan EMI Payment
+2025-02-22,Credit,,1950000,10430000,Customer Payment - LMN Industries
+2025-02-25,Debit,1200000,,9230000,Supplier Payment - Steel Coils
+2025-02-28,Debit,145000,,9085000,Office Rent & Utilities
+2025-03-03,Credit,,3100000,12185000,Bulk Order Payment - Government Contract
+2025-03-06,Debit,750000,,11435000,Transportation & Logistics
+2025-03-10,Credit,,2250000,13685000,Customer Payment - RST Corp
+2025-03-12,Debit,95000,,13590000,Insurance Premium
+2025-03-15,Debit,680000,,12910000,Salary & Wages
+2025-03-18,Credit,,1850000,14760000,Export Proceeds - UAE
+2025-03-22,Debit,1450000,,13310000,Raw Material - Bulk Purchase
+2025-03-25,Debit,125000,,13185000,Maintenance & Repairs
+2025-03-28,Credit,,2650000,15835000,Customer Payment - UVW Ltd
+2025-03-31,Debit,350000,,15485000,Loan EMI Payment
