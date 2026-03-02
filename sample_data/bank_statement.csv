@@ -1,0 +1,25 @@
+date,description,amount,type
+2024-04-01,Customer receipt,8.5,credit
+2024-04-12,GST payment,1.1,debit
+2024-05-05,Customer receipt,9.2,credit
+2024-05-18,Interest on term loan,0.6,debit
+2024-06-03,Customer receipt,10.4,credit
+2024-06-20,Vendor payment,4.2,debit
+2024-07-04,Customer receipt,11.0,credit
+2024-07-19,Interest on term loan,0.6,debit
+2024-08-02,Customer receipt,9.8,credit
+2024-08-21,Vendor payment,4.0,debit
+2024-09-03,Customer receipt,10.1,credit
+2024-09-18,Interest on term loan,0.6,debit
+2024-10-05,Customer receipt,9.6,credit
+2024-10-22,Vendor payment,4.3,debit
+2024-11-04,Customer receipt,10.5,credit
+2024-11-21,Interest on term loan,0.6,debit
+2024-12-02,Customer receipt,11.3,credit
+2024-12-20,Vendor payment,4.6,debit
+2025-01-06,Customer receipt,9.9,credit
+2025-01-25,Interest on term loan,0.6,debit
+2025-02-04,Customer receipt,10.7,credit
+2025-02-19,Vendor payment,4.4,debit
+2025-03-05,Customer receipt,10.2,credit
+2025-03-21,Interest on term loan,0.6,debit

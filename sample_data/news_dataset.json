@@ -1,0 +1,82 @@
+[
+  {
+    "company_name": "Shakti Steel Pvt Ltd",
+    "date": "2024-11-05",
+    "title": "Shakti Steel wins large infra order",
+    "snippet": "The company announced a new supply order for metro rail project, supporting growth outlook.",
+    "source": "Business Standard",
+    "sentiment": "Positive"
+  },
+  {
+    "company_name": "UrbanNest Realty",
+    "date": "2024-12-12",
+    "title": "UrbanNest Realty faces NCLT petition",
+    "snippet": "A contractor filed a petition citing delayed payments; management plans settlement.",
+    "source": "Economic Times",
+    "sentiment": "Negative"
+  },
+  {
+    "company_name": "Narmada Infra Projects",
+    "date": "2024-10-01",
+    "title": "Narmada Infra secures state highway EPC contract",
+    "snippet": "Order book improves with new highway project, supporting revenue visibility.",
+    "source": "Mint",
+    "sentiment": "Positive"
+  },
+  {
+    "company_name": "Lotus Textiles India",
+    "date": "2024-09-18",
+    "title": "Textile exporters see margin pressure",
+    "snippet": "Sector outlook cautious as raw material costs rise and EU demand softens.",
+    "source": "Financial Express",
+    "sentiment": "Neutral"
+  },
+  {
+    "company_name": "Prism Pharma Labs",
+    "date": "2024-08-22",
+    "title": "Prism Pharma clears USFDA inspection",
+    "snippet": "Regulatory audit completed without observations, lifting sector sentiment.",
+    "source": "Business Line",
+    "sentiment": "Positive"
+  },
+  {
+    "company_name": "Aurora Electronics",
+    "date": "2024-12-30",
+    "title": "Electronics suppliers face working capital crunch",
+    "snippet": "Industry reports delayed receivables and higher inventory days.",
+    "source": "CNBCTV18",
+    "sentiment": "Negative"
+  },
+  {
+    "company_name": "BlueWave Chemicals",
+    "date": "2024-07-15",
+    "title": "Chemical maker sees capacity expansion",
+    "snippet": "Expansion to add 20% capacity with focus on export orders.",
+    "source": "Hindu BusinessLine",
+    "sentiment": "Positive"
+  },
+  {
+    "company_name": "Kaveri Healthcare Services",
+    "date": "2024-11-20",
+    "title": "Healthcare demand steady despite pricing controls",
+    "snippet": "Domestic pharma demand remains stable; pricing pressures persist.",
+    "source": "Moneycontrol",
+    "sentiment": "Neutral"
+  },
+  {
+    "company_name": "UrbanNest Realty",
+    "date": "2025-01-10",
+    "title": "RBI flags credit concentration in real estate",
+    "snippet": "Regulator reiterates cautious stance on construction finance and NCLT exposure.",
+    "source": "RBI Bulletin",
+    "sentiment": "Negative"
+  },
+  {
+    "company_name": "Shakti Steel Pvt Ltd",
+    "date": "2024-06-14",
+    "title": "Shakti Steel reports stable quarterly profit",
+    "snippet": "Stable margins and improved collections reported in FY24 Q4.",
+    "source": "BloombergQuint",
+    "sentiment": "Positive"
+  }
+]

@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&display=swap');
+
+:root {
+  --bg: #f6f2ea;
+  --card: #fff8f0;
+  --ink: #1e1b16;
+  --muted: #6b6258;
+  --accent: #d35400;
+  --accent-dark: #8f2b00;
+  --border: #e0d6c8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", sans-serif;
+  background: radial-gradient(circle at 15% 20%, #fffaf1 0%, var(--bg) 55%, #efe4d5 100%);
+  color: var(--ink);
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 40px;
+  background: #ffffff;
+  border-bottom: 2px solid var(--border);
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: 0.5px;
+}
+
+.hero p {
+  margin: 6px 0 0 0;
+  color: var(--muted);
+}
+
+.badge {
+  padding: 8px 14px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  border-radius: 24px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 24px 40px 40px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+input, select, textarea {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+.status {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.gauge {
+  margin-top: 16px;
+}
+
+.gauge-bar {
+  height: 12px;
+  background: #f1e6d5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gauge-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c);
+  transition: width 0.6s ease;
+}
+
+.gauge-value {
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.drivers ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+}
+
+.drivers li {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.note {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+@media (max-width: 600px) {
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .grid {
+    padding: 20px;
+  }
+}

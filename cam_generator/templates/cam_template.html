@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: Arial, sans-serif; color: #1f1f1f; font-size: 12px; }
+    h1 { font-size: 18px; margin-bottom: 4px; }
+    h2 { font-size: 14px; margin-top: 18px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    .meta { margin-bottom: 12px; }
+    .meta div { margin: 2px 0; }
+    .section { margin-bottom: 10px; }
+    .small { color: #555; font-size: 11px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+    th { background: #f6f6f6; }
+  </style>
+</head>
+<body>
+  <h1>Comprehensive Credit Appraisal Memo (CAM)</h1>
+  <div class="meta">
+    <div><strong>Borrower:</strong> {{ company.name }}</div>
+    <div><strong>Sector:</strong> {{ company.sector }}</div>
+    <div><strong>Date:</strong> {{ report_date }}</div>
+  </div>
+
+  <h2>1. Executive Summary</h2>
+  <div class="section">
+    Risk Band: {{ executive_summary.risk_band }} | Score: {{ executive_summary.total_score }}<br/>
+    Recommendation: {{ executive_summary.recommendation.decision_tag }}
+  </div>
+
+  <h2>2. Business Overview</h2>
+  <div class="section">{{ company.business_overview }}</div>
+
+  <h2>3. Financial Analysis</h2>
+  <table>
+    <tr><th>Metric</th><th>Value</th></tr>
+    <tr><td>Revenue</td><td>{{ format_money(company.revenue) }}</td></tr>
+    <tr><td>EBITDA</td><td>{{ format_money(company.ebitda) }}</td></tr>
+    <tr><td>Debt</td><td>{{ format_money(company.debt) }}</td></tr>
+    <tr><td>Interest Coverage</td><td>{{ financials.metrics.interest_coverage_ratio }}</td></tr>
+    <tr><td>DSCR</td><td>{{ financials.metrics.dscr }}</td></tr>
+    <tr><td>GST vs Bank Ratio</td><td>{{ financials.metrics.gst_vs_bank_ratio }}</td></tr>
+    <tr><td>EBITDA Trend</td><td>{{ financials.metrics.ebitda_trend }}</td></tr>
+    <tr><td>Security Cover</td><td>{{ financials.metrics.security_cover }}</td></tr>
+  </table>
+
+  <h2>4. Banking Behaviour</h2>
+  <div class="section">Average monthly credits: {{ format_money(financials.bank_credits / 12 if financials.bank_credits else None) }}</div>
+
+  <h2>5. Risk Flags</h2>
+  <div class="section">
+    {% if financials.flags %}
+      <ul>
+      {% for flag in financials.flags %}
+        <li>{{ flag }}</li>
+      {% endfor %}
+      </ul>
+    {% else %}
+      No material red flags observed.
+    {% endif %}
+  </div>
+
+  <h2>6. Five Cs Assessment</h2>
+  <table>
+    <tr><th>Factor</th><th>Score</th></tr>
+    {% for key, value in five_cs.items() %}
+      <tr><td>{{ key | title }}</td><td>{{ value }}</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>7. Final Recommendation</h2>
+  <div class="section">
+    Eligible Amount: {{ format_money(executive_summary.recommendation.eligible_amount) }}<br/>
+    Suggested Rate: {{ executive_summary.recommendation.interest_rate }}%<br/>
+    Decision: {{ executive_summary.recommendation.decision_tag }}<br/>
+    Rationale: {{ executive_summary.recommendation.rationale }}
+  </div>
+
+  <h2>Annexure: Research Evidence</h2>
+  <div class="section">
+    {% for item in research.news_hits[:4] %}
+      <div class="small">{{ item.date }} | {{ item.title }} | {{ item.snippet }}</div>
+    {% endfor %}
+  </div>
+</body>
+</html>
