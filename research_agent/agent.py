@@ -18,10 +18,11 @@ except ImportError:
     print("Warning: AI modules not available. Running in basic mode.")
 
 RISK_KEYWORDS = {
-    "default": ["default", "delayed", "overdue"],
-    "litigation": ["litigation", "court", "tribunal", "nclt"],
-    "fraud": ["fraud", "probe", "investigation", "cbi", "sfio"],
-    "regulatory": ["rbi", "sebi", "penalty", "show cause"],
+    "default": ["default", "delayed", "overdue", "npa", "restructuring"],
+    "litigation": ["litigation", "court", "tribunal", "nclt", "summon", "case"],
+    "fraud": ["fraud", "probe", "investigation", "cbi", "sfio", "misappropriation"],
+    "regulatory": ["rbi", "sebi", "penalty", "show cause", "violation", "compliance"],
+    "promoter": ["pledge", "abscond", "removal", "disqualified", "resignation"],
 }
 
 POSITIVE_WORDS = {"growth", "award", "expansion", "profit", "strong", "order"}
@@ -136,7 +137,10 @@ def _run_enhanced_research(company_profile: Dict[str, object]) -> Dict[str, obje
         "news_hits": evidence,
         "risk_heatmap": heatmap,
         "litigation_signals": heatmap.get("litigation", 0),
+        "promoter_risks": heatmap.get("promoter", 0),
+        "regulatory_risks": heatmap.get("regulatory", 0),
         "negative_news_count": negative_hits,
+        "risk_tags": [cat for cat, count in heatmap.items() if count > 0],
         "ai_analysis": ai_analysis,
         "web_crawl_stats": {
             "articles_found": len(news_articles),

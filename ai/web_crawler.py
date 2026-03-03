@@ -22,8 +22,10 @@ class WebCrawler:
         queries = [
             f"{company_name} financial news India",
             f"{company_name} credit rating",
-            f"{company_name} annual report",
-            f"{sector} sector India outlook"
+            f"{company_name} promoter news litigation",
+            f"{company_name} regulatory penalties SEBI RBI",
+            f"{company_name} court cases NCLT",
+            f"{sector} sector India outlook 2026"
         ]
         
         async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -121,9 +123,10 @@ class WebCrawler:
             if matches:
                 details['financial_mentions'].extend([f"{m[0]} {m[1]}" for m in matches[:3]])
         
-        # Risk indicators
+        # Risk indicators (Hackathon Pillar 2)
         risk_keywords = ['default', 'litigation', 'fraud', 'penalty', 'investigation', 
-                        'bankruptcy', 'insolvency', 'npa', 'restructuring']
+                        'bankruptcy', 'insolvency', 'npa', 'restructuring', 
+                        'promoter pledge', 'regulatory action', 'sebi probe', 'rbi penalty']
         for keyword in risk_keywords:
             if keyword in text_lower:
                 # Extract sentence containing the keyword

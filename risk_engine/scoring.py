@@ -144,27 +144,34 @@ def compute_five_cs(
     collateral, collateral_drivers = _score_collateral(financials)
     conditions, conditions_drivers = _score_conditions(research)
 
-    total_score = round(character + capacity + capital + collateral + conditions, 2)
+    # Hackathon Pillar 3: Weighted 5Cs Formula
+    # Capacity (35%), Character (20%), Capital (15%), Collateral (15%), Conditions (15%)
+    # Original scores are already roughly in these ranges but let's normalize to 100-base points if needed
+    # However, the user prompt suggests: 0.35 * Cap + 0.20 * Char + 0.15 * Cap + 0.15 * Coll + 0.15 * Cond
+    # Our _score functions return raw points. We need to ensure they align with the 100-point scale.
+    
+    # Normalizing raw scores to their weighted contributions
+    weighted_scores = {
+        "capacity": (capacity / 30.0) * 35.0, # Capacity max is 30 in code
+        "character": (character / 20.0) * 20.0, # Character max is 20
+        "capital": (capital / 20.0) * 15.0, # Capital max is 20
+        "collateral": (collateral / 15.0) * 15.0, # Collateral max is 15
+        "conditions": (conditions / 15.0) * 15.0, # Conditions max is 15
+    }
+
+    total_score = round(sum(weighted_scores.values()), 2)
     band = classify_risk_band(total_score)
 
-    top_drivers = list({
-        *character_drivers,
-        *capacity_drivers,
-        *capital_drivers,
-        *collateral_drivers,
-        *conditions_drivers,
-        *financials.get("flags", []),
-    })
-
     return {
-        "scores": {
-            "character": character,
-            "capacity": capacity,
-            "capital": capital,
-            "collateral": collateral,
-            "conditions": conditions,
+        "scores": weighted_scores,
+        "component_details": {
+            "capacity": {"score": weighted_scores["capacity"], "reason": ", ".join(capacity_drivers) or "Adequate cash flow"},
+            "character": {"score": weighted_scores["character"], "reason": ", ".join(character_drivers) or "Clean track record"},
+            "capital": {"score": weighted_scores["capital"], "reason": ", ".join(capital_drivers) or "Sufficient equity"},
+            "collateral": {"score": weighted_scores["collateral"], "reason": ", ".join(collateral_drivers) or "Standard coverage"},
+            "conditions": {"score": weighted_scores["conditions"], "reason": ", ".join(conditions_drivers) or "Stable sector outlook"},
         },
         "total_score": total_score,
         "risk_band": band,
-        "drivers": top_drivers,
+        "drivers": list(set(character_drivers + capacity_drivers + capital_drivers + collateral_drivers + conditions_drivers)),
     }
