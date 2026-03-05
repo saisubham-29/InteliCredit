@@ -37,7 +37,7 @@ from api.storage import (
     save_officer_inputs,
 )
 
-app = FastAPI(title="INTELLI-CREDIT API (Stateless)", version="0.2")
+app = FastAPI(title="INTELLI-CREDIT API (Stateless)", version="0.2.1") # Build: 2026-03-06T02:25:00
 
 app.add_middleware(
     CORSMiddleware,
@@ -54,8 +54,8 @@ def _startup() -> None:
     # init_storage_db() # Storage is now in-memory (stateless)
 
 @app.get("/")
-def root() -> HTMLResponse:
-    return HTMLResponse("INTELLI-CREDIT API is running in stateless mode.")
+def root():
+    return {"message": "IntelliCredit API is running"}
 
 @app.middleware("http")
 async def log_requests(request, call_next):
