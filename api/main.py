@@ -42,7 +42,7 @@ app = FastAPI(title="INTELLI-CREDIT API (Stateless)", version="0.2")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -51,11 +51,18 @@ app.add_middleware(
 @app.on_event("startup")
 def _startup() -> None:
     auth_utils.init_firebase()
-    init_storage_db() # Keeping SQLite storage for transient app data (not users)
+    # init_storage_db() # Storage is now in-memory (stateless)
 
 @app.get("/")
 def root() -> HTMLResponse:
     return HTMLResponse("INTELLI-CREDIT API is running in stateless mode.")
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    origin = request.headers.get("origin")
+    print(f"DEBUG: Request {request.method} {request.url.path} from Origin: {origin}")
+    response = await call_next(request)
+    return response
 
 # --- Authentication ---
 

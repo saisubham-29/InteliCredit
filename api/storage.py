@@ -1,172 +1,93 @@
-import sqlite3
 import json
 import os
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "intelicredit.db")
-
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# In-memory storage to satisfy "stateless (no database)" requirement
+# Note: Data will be lost on server restart. 
+_storage = {
+    "companies": {},      # company_id -> dict
+    "documents": {},      # company_id -> list of dicts
+    "analysis_results": {}, # company_id -> list of dicts (ordered by created_at)
+    "officer_inputs": {},   # company_id -> dict
+}
 
 def init_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Companies table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS companies (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            sector TEXT,
-            pan_number TEXT,
-            gst_number TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    # Documents table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company_id TEXT,
-            filename TEXT,
-            doc_type TEXT,
-            storage_path TEXT,
-            uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (company_id) REFERENCES companies (id)
-        )
-    """)
-    
-    # Analysis Results table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS analysis_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company_id TEXT,
-            risk_score FLOAT,
-            risk_band TEXT,
-            recommendation TEXT, -- JSON
-            five_cs_breakdown TEXT, -- JSON
-            financial_metrics TEXT, -- JSON
-            research_summary TEXT, -- JSON
-            cam_json TEXT, -- JSON
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (company_id) REFERENCES companies (id)
-        )
-    """)
-
-    # Officer Inputs table (New or restored)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS officer_inputs (
-            company_id TEXT PRIMARY KEY,
-            inputs TEXT, -- JSON
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (company_id) REFERENCES companies (id)
-        )
-    """)
-    
-    conn.commit()
-    conn.close()
+    """No-op for in-memory storage"""
+    pass
 
 def save_company(company_id, name, sector=None):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT OR REPLACE INTO companies (id, name, sector) VALUES (?, ?, ?)",
-        (company_id, name, sector)
-    )
-    conn.commit()
-    conn.close()
+    _storage["companies"][company_id] = {
+        "id": company_id,
+        "name": name,
+        "sector": sector,
+        "created_at": datetime.now().isoformat()
+    }
 
 def get_company(company_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM companies WHERE id = ?", (company_id,))
-    row = cursor.fetchone()
-    conn.close()
-    return dict(row) if row else None
+    return _storage["companies"].get(company_id)
 
 def save_documents(company_id, documents):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    if company_id not in _storage["documents"]:
+        _storage["documents"][company_id] = []
+    
     for doc in documents:
-        cursor.execute(
-            "INSERT INTO documents (company_id, filename, doc_type, storage_path) VALUES (?, ?, ?, ?)",
-            (company_id, doc.get("filename"), doc.get("doc_type"), doc.get("path"))
-        )
-    conn.commit()
-    conn.close()
+        _storage["documents"][company_id].append({
+            "company_id": company_id,
+            "filename": doc.get("filename"),
+            "doc_type": doc.get("doc_type"),
+            "storage_path": doc.get("path"),
+            "uploaded_at": datetime.now().isoformat()
+        })
 
 def get_documents(company_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM documents WHERE company_id = ?", (company_id,))
-    rows = cursor.fetchall()
-    conn.close()
-    return [dict(row) for row in rows]
+    return _storage["documents"].get(company_id, [])
 
 def save_analysis(company_id, risk_report, cam_json=None):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    if company_id not in _storage["analysis_results"]:
+        _storage["analysis_results"][company_id] = []
     
-    # Flatten risk_report if needed or store as JSON string
-    risk_score = risk_report.get("total_score", 0.0)
-    risk_band = risk_report.get("risk_band", "Unknown")
-    
-    cursor.execute(
-        "INSERT INTO analysis_results (company_id, risk_score, risk_band, recommendation, five_cs_breakdown, financial_metrics, research_summary, cam_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            company_id, 
-            risk_score, 
-            risk_band, 
-            json.dumps(risk_report.get("recommendation", {})),
-            json.dumps(risk_report.get("component_details", {})),
-            json.dumps(risk_report.get("financial_metrics", {})),
-            json.dumps(risk_report.get("research_summary", {})),
-            json.dumps(cam_json) if cam_json else None
-        )
-    )
-    conn.commit()
-    conn.close()
+    analysis_entry = {
+        "company_id": company_id,
+        "risk_score": risk_report.get("total_score", 0.0),
+        "risk_band": risk_report.get("risk_band", "Unknown"),
+        "recommendation": json.dumps(risk_report.get("recommendation", {})),
+        "five_cs_breakdown": json.dumps(risk_report.get("component_details", {})),
+        "financial_metrics": json.dumps(risk_report.get("financial_metrics", {})),
+        "research_summary": json.dumps(risk_report.get("research_summary", {})),
+        "cam_json": json.dumps(cam_json) if cam_json else None,
+        "created_at": datetime.now().isoformat()
+    }
+    _storage["analysis_results"][company_id].append(analysis_entry)
 
 def get_analysis(company_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM analysis_results WHERE company_id = ? ORDER BY created_at DESC LIMIT 1", (company_id,))
-    row = cursor.fetchone()
-    conn.close()
-    
-    if not row:
+    results = _storage["analysis_results"].get(company_id)
+    if not results:
         return None
     
-    res = dict(row)
-    # Parse JSON strings back to dicts
-    res["risk_report"] = {
-        "total_score": res["risk_score"],
-        "risk_band": res["risk_band"],
-        "recommendation": json.loads(res["recommendation"] or "{}"),
-        "component_details": json.loads(res["five_cs_breakdown"] or "{}"),
-        "financial_metrics": json.loads(res["financial_metrics"] or "{}"),
-        "research_summary": json.loads(res["research_summary"] or "{}"),
+    # Get the latest result
+    res = results[-1]
+    
+    # Reconstruct the format expected by the API
+    return {
+        "company_id": res["company_id"],
+        "risk_report": {
+            "total_score": res["risk_score"],
+            "risk_band": res["risk_band"],
+            "recommendation": json.loads(res["recommendation"] or "{}"),
+            "component_details": json.loads(res["five_cs_breakdown"] or "{}"),
+            "financial_metrics": json.loads(res["financial_metrics"] or "{}"),
+            "research_summary": json.loads(res["research_summary"] or "{}"),
+        },
+        "cam_json": json.loads(res["cam_json"] or "{}"),
+        "created_at": res["created_at"]
     }
-    res["cam_json"] = json.loads(res["cam_json"] or "{}")
-    return res
 
 def save_officer_inputs(company_id, officer_inputs):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT OR REPLACE INTO officer_inputs (company_id, inputs) VALUES (?, ?)",
-        (company_id, json.dumps(officer_inputs))
-    )
-    conn.commit()
-    conn.close()
+    _storage["officer_inputs"][company_id] = {
+        "inputs": json.dumps(officer_inputs),
+        "updated_at": datetime.now().isoformat()
+    }
 
 def get_officer_inputs(company_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT inputs FROM officer_inputs WHERE company_id = ?", (company_id,))
-    row = cursor.fetchone()
-    conn.close()
-    return json.loads(row[0]) if row else {}
+    entry = _storage["officer_inputs"].get(company_id)
+    return json.loads(entry["inputs"]) if entry else {}

@@ -183,7 +183,7 @@ def run_analysis(
         except Exception as e:
             print(f"Gemini financial analysis failed: {e}")
 
-    risk_report = compute_five_cs(financials, research, company_profile, officer_inputs)
+    risk_report = compute_five_cs(financials, research, company_profile, officer_inputs, fraud_signals)
 
     # Pillar 2: Integrate qualitative user input (e.g., factory at 40% capacity)
     qualitative_adjustments = []

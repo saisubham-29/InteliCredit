@@ -186,21 +186,25 @@ def analyze_financials(
         metrics["debt_to_ebitda"] = None
         missing.append("debt_to_ebitda")
 
-    flags = []
-    gst_mismatch, gst_flags = _check_gst_mismatch(gst_rows)
-    flags.extend(gst_flags)
-    
-    anomaly_flags = _detect_anomalies(bank_rows)
-    flags.extend(anomaly_flags)
+    # MSME Consideration: Indian government grants specific benefits. 
+    # High GST compliance is a strong positive signal for MSME lending.
+    is_msme = company_profile.get("is_msme", False)
+    if is_msme:
+        if gst_turnover > 0 and len(gst_rows) >= 12:
+            flags.append("Strong MSME candidate: Regular GST filing history detected")
+            # Potential score booster in risk engine (to be handled there)
 
-    if metrics.get("gst_vs_bank_ratio") and metrics["gst_vs_bank_ratio"] > 1.3:
-        flags.append("GST vs bank mismatch suggests revenue inflation (Window Dressing)")
-    if metrics.get("interest_coverage_ratio") is not None and metrics["interest_coverage_ratio"] < 1.5:
-        flags.append("Weak interest coverage ratio")
-    if metrics.get("dscr") is not None and metrics["dscr"] < 1.2:
-        flags.append("DSCR below comfort")
-    if leverage and leverage > 4:
-        flags.append("High leverage (Debt/EBITDA > 4x)")
+    # Indian Banking specific: Search for common levy/penalty keywords in bank statements
+    levy_count = 0
+    if "description" in df.columns:
+        levy_keywords = ["penal", "levy", "charges", "cheque return", "insufficient fund"]
+        # Convert to series for search
+        desc_series = df["description"].str.lower()
+        for kw in levy_keywords:
+            levy_count += desc_series.str.contains(kw, na=False).sum()
+    
+    if levy_count > 3:
+        flags.append(f"Multiple bank charges/levies detected ({levy_count}): Check for frequent fund shortages")
 
     return {
         "metrics": metrics,
@@ -210,4 +214,5 @@ def analyze_financials(
         "bank_debits": bank_debits,
         "gst_turnover": gst_turnover,
         "interest_expense": interest_expense,
+        "is_msme_verified": is_msme and gst_turnover > 0
     }

@@ -37,13 +37,13 @@ InteliCredit is a state-of-the-art enterprise lending platform designed for the 
 ```
 /InteliCredit
 |-- ai/                          # AI/ML Core (XAI, GNN, Gemini)
-|-- api/                         # FastAPI Services & Pipeline
+|-- api/                         # FastAPI Services & Pipeline (Stateless)
 |-- cam_generator/               # Jinja2 PDF Templates & Logic
 |-- document_parser/             # PDF/CSV Extraction
-|-- financial_analyzer/          # Indian Context Heuristics
+|-- financial_analyzer/          # Indian Context Heuristics (GST & Bank)
 |-- frontend-nextjs/             # Next.js Dashboard
 |-- risk_engine/                 # 5Cs Scoring Logic
-|-- storage/                     # SQLite (Persistence) & CAM Output
+|-- storage/                     # In-memory session data & CAM Output
 ```
 
 ## 🚀 Quick Start

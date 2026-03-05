@@ -132,31 +132,49 @@ def _score_conditions(research: Dict[str, object]) -> Tuple[float, List[str]]:
     return _clamp(score, 0, 15), drivers
 
 
+def _score_fraud(fraud_analysis: Dict[str, object]) -> Tuple[float, List[str]]:
+    score = 0.0
+    drivers = []
+    risk_score = fraud_analysis.get("fraud_risk_score", 0.0)
+    
+    if risk_score > 0.7:
+        score += 10
+        drivers.append("Critical fraud risk detected by GNN engine")
+    elif risk_score > 0.4:
+        score += 5
+        drivers.append("Elevated fraud risk patterns identified")
+    
+    patterns = fraud_analysis.get("detected_patterns", [])
+    if patterns:
+        drivers.extend([f"Fraud signal: {p}" for p in patterns[:2]])
+        
+    return _clamp(score, 0, 10), drivers
+
+
 def compute_five_cs(
     financials: Dict[str, object],
     research: Dict[str, object],
     company_profile: Dict[str, object],
     officer_inputs: Dict[str, object],
+    fraud_analysis: Dict[str, object] | None = None,
 ) -> Dict[str, object]:
     character, character_drivers = _score_character(research, officer_inputs)
     capacity, capacity_drivers = _score_capacity(financials)
     capital, capital_drivers = _score_capital(financials, company_profile)
     collateral, collateral_drivers = _score_collateral(financials)
     conditions, conditions_drivers = _score_conditions(research)
+    
+    fraud, fraud_drivers = _score_fraud(fraud_analysis or {})
 
     # Hackathon Pillar 3: Weighted 5Cs Formula
-    # Capacity (35%), Character (20%), Capital (15%), Collateral (15%), Conditions (15%)
-    # Original scores are already roughly in these ranges but let's normalize to 100-base points if needed
-    # However, the user prompt suggests: 0.35 * Cap + 0.20 * Char + 0.15 * Cap + 0.15 * Coll + 0.15 * Cond
-    # Our _score functions return raw points. We need to ensure they align with the 100-point scale.
-    
-    # Normalizing raw scores to their weighted contributions
+    # Capacity (30%), Character (20%), Capital (15%), Collateral (15%), Conditions (10%), Fraud/Integrity (10%)
     weighted_scores = {
-        "capacity": (capacity / 30.0) * 35.0, # Capacity max is 30 in code
-        "character": (character / 20.0) * 20.0, # Character max is 20
-        "capital": (capital / 20.0) * 15.0, # Capital max is 20
-        "collateral": (collateral / 15.0) * 15.0, # Collateral max is 15
-        "conditions": (conditions / 15.0) * 15.0, # Conditions max is 15
+        "capacity": (capacity / 30.0) * 30.0,
+        "character": (character / 20.0) * 20.0,
+        "capital": (capital / 20.0) * 15.0,
+        "collateral": (collateral / 15.0) * 15.0,
+        "conditions": (conditions / 15.0) * 10.0,
+        "integrity_fraud": (fraud / 10.0) * 10.0,
     }
 
     total_score = round(sum(weighted_scores.values()), 2)

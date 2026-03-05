@@ -1,0 +1,10 @@
+.venv
+.venv_312
+.venv_new
+__pycache__
+node_modules
+.env
+.env.local
+.git
+.gitignore
+frontend-nextjs/node_modules

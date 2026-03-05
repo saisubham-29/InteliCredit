@@ -49,7 +49,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 // --- Types ---
 
@@ -140,6 +140,22 @@ export default function App() {
   }, []);
 
   const handleGoogleLogin = async () => {
+    // Demo Mode Bypass
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
+      setFirebaseUser({
+        uid: "demo-user",
+        email: "demo@giet.edu",
+        displayName: "Demo User",
+        getIdToken: async () => "demo-token-123",
+      } as any);
+      setProfile({
+        name: "Demo User",
+        email: "demo@giet.edu",
+      });
+      fetchCompanies();
+      return;
+    }
+
     setAuthLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
@@ -164,7 +180,7 @@ export default function App() {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const token = await getIdToken(auth.currentUser!);
+      const token = await firebaseUser?.getIdToken();
       const res = await fetch(`${API_BASE}/upload-documents`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
@@ -189,7 +205,7 @@ export default function App() {
     setActionLoading(true);
 
     try {
-      const token = await getIdToken(auth.currentUser!);
+      const token = await firebaseUser?.getIdToken();
       const res = await fetch(`${API_BASE}/analyze-company`, {
         method: "POST",
         headers: { 
@@ -689,7 +705,7 @@ export default function App() {
                                       <Tooltip 
                                         cursor={{ fill: 'transparent' }}
                                         contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff' }}
-                                        formatter={(val: number) => [`${val.toFixed(1)}%`, 'Contribution']}
+                                        formatter={(val: number | undefined) => [val !== undefined ? `${val.toFixed(1)}%` : '0%', 'Contribution']}
                                       />
                                       <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
                                         {xaiData.map((entry, index) => (
