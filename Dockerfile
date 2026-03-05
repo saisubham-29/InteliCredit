@@ -33,5 +33,5 @@ COPY . .
 # Expose backend port (Railway overrides this with $PORT at runtime)
 EXPOSE ${PORT:-8000}
 
-# Start FastAPI with Gunicorn using shell form for Railway port expansion
-CMD gunicorn -k uvicorn.workers.UvicornWorker api.main:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+# Start FastAPI with Gunicorn (Railway port expanded via $PORT)
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:$PORT", "api.main:app"]

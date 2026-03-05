@@ -54,8 +54,8 @@ def _startup() -> None:
     # init_storage_db() # Storage is now in-memory (stateless)
 
 @app.get("/")
-def root():
-    return {"message": "IntelliCredit API is running"}
+def health():
+    return {"status": "IntelliCredit API running"}
 
 @app.middleware("http")
 async def log_requests(request, call_next):
