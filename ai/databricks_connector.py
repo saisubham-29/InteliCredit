@@ -1,5 +1,5 @@
 """
-Databricks integration for multi-source data ingestion
+Databricks integration for multi-source data ingestion with Unity Catalog support
 """
 import os
 from typing import Dict, List, Optional
@@ -14,6 +14,10 @@ class DatabricksConnector:
         self.token = os.getenv("DATABRICKS_TOKEN")
         self.warehouse_id = os.getenv("DATABRICKS_WAREHOUSE_ID")
         
+        # Unity Catalog Namespacing
+        self.catalog = os.getenv("DATABRICKS_CATALOG", "main")
+        self.schema = os.getenv("DATABRICKS_SCHEMA", "default")
+        
         if not all([self.host, self.token, self.warehouse_id]):
             print("Warning: Databricks credentials not configured. Using local data only.")
             self.enabled = False
@@ -24,6 +28,10 @@ class DatabricksConnector:
                 "Content-Type": "application/json"
             }
     
+    def get_table_path(self, table_name: str) -> str:
+        """Returns fully qualified Unity Catalog path"""
+        return f"`{self.catalog}`.`{self.schema}`.`{table_name}`"
+
     def execute_query(self, query: str) -> Optional[List[Dict]]:
         """Execute SQL query on Databricks warehouse"""
         if not self.enabled:
@@ -53,20 +61,12 @@ class DatabricksConnector:
     
     def fetch_company_financials(self, company_id: str, company_name: str) -> Optional[Dict]:
         """Fetch company financial data from Databricks"""
+        table = self.get_table_path("financial_data")
         query = f"""
         SELECT 
-            fiscal_year,
-            revenue,
-            net_profit,
-            total_assets,
-            total_liabilities,
-            current_assets,
-            current_liabilities,
-            debt,
-            equity,
-            operating_profit,
-            interest_expense
-        FROM financial_data
+            fiscal_year, revenue, net_profit, total_assets, total_liabilities,
+            current_assets, current_liabilities, debt, equity, operating_profit, interest_expense
+        FROM {table}
         WHERE company_id = '{company_id}' OR company_name LIKE '%{company_name}%'
         ORDER BY fiscal_year DESC
         LIMIT 3
@@ -79,16 +79,12 @@ class DatabricksConnector:
     
     def fetch_credit_bureau_data(self, company_id: str) -> Optional[Dict]:
         """Fetch credit bureau data (CIBIL, Experian, etc.)"""
+        table = self.get_table_path("credit_bureau_data")
         query = f"""
         SELECT 
-            bureau_name,
-            credit_score,
-            total_exposure,
-            overdue_amount,
-            dpd_30_plus,
-            dpd_90_plus,
-            last_updated
-        FROM credit_bureau_data
+            bureau_name, credit_score, total_exposure, overdue_amount,
+            dpd_30_plus, dpd_90_plus, last_updated
+        FROM {table}
         WHERE company_id = '{company_id}'
         ORDER BY last_updated DESC
         LIMIT 1
@@ -101,15 +97,12 @@ class DatabricksConnector:
     
     def fetch_banking_transactions(self, company_id: str, months: int = 12) -> Optional[List[Dict]]:
         """Fetch banking transaction data"""
+        table = self.get_table_path("banking_transactions")
         query = f"""
         SELECT 
-            transaction_date,
-            credit_amount,
-            debit_amount,
-            balance,
-            transaction_type,
-            counterparty
-        FROM banking_transactions
+            transaction_date, credit_amount, debit_amount, balance,
+            transaction_type, counterparty
+        FROM {table}
         WHERE company_id = '{company_id}'
         AND transaction_date >= DATE_SUB(CURRENT_DATE(), {months * 30})
         ORDER BY transaction_date DESC
@@ -122,15 +115,12 @@ class DatabricksConnector:
     
     def fetch_gst_data(self, gstin: str) -> Optional[Dict]:
         """Fetch GST filing and compliance data"""
+        table = self.get_table_path("gst_data")
         query = f"""
         SELECT 
-            filing_period,
-            total_sales,
-            total_purchases,
-            tax_paid,
-            filing_status,
-            filing_date
-        FROM gst_data
+            filing_period, total_sales, total_purchases, tax_paid,
+            filing_status, filing_date
+        FROM {table}
         WHERE gstin = '{gstin}'
         ORDER BY filing_period DESC
         LIMIT 12
@@ -143,15 +133,11 @@ class DatabricksConnector:
     
     def fetch_legal_cases(self, company_id: str, company_name: str) -> Optional[List[Dict]]:
         """Fetch legal cases and litigation data"""
+        table = self.get_table_path("legal_cases")
         query = f"""
         SELECT 
-            case_number,
-            case_type,
-            filing_date,
-            status,
-            court_name,
-            amount_involved
-        FROM legal_cases
+            case_number, case_type, filing_date, status, court_name, amount_involved
+        FROM {table}
         WHERE company_id = '{company_id}' OR company_name LIKE '%{company_name}%'
         ORDER BY filing_date DESC
         """
@@ -163,20 +149,20 @@ class DatabricksConnector:
         """Parse Databricks SQL results into list of dicts"""
         try:
             manifest = result.get("manifest", {})
-            chunks = manifest.get("chunks", [])
+            chunks = result.get("result", {}).get("data_ptr", []) # Updated for modern SQL API if applicable
             
-            if not chunks:
-                return []
-            
-            # Get column names
+            # Simple fallback to result.get("rows") if it exists
+            if "rows" in result:
+                return result["rows"]
+                
+            # Full parsing logic
             schema = result.get("manifest", {}).get("schema", {}).get("columns", [])
             columns = [col["name"] for col in schema]
             
-            # Parse data rows
             rows = []
-            for chunk in chunks:
-                chunk_data = chunk.get("data", [])
-                for row in chunk_data:
+            # This is a simplified parser; experimental Unity Catalog results often come in 'rows'
+            if "result" in result and "data" in result["result"]:
+                for row in result["result"]["data"]:
                     rows.append(dict(zip(columns, row)))
             
             return rows

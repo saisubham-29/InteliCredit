@@ -42,6 +42,57 @@ def _sum_gst_turnover(rows: List[dict]) -> float:
     return float(df[turnover_col].sum())
 
 
+def _check_gst_mismatch(gst_rows: List[dict]) -> Tuple[float, List[str]]:
+    """Check for mismatch between GSTR-1/3B and 2A (Input Credit)"""
+    if not gst_rows:
+        return 0.0, []
+    
+    df = pd.DataFrame(gst_rows)
+    # Mocking GSTR-2A vs 3B comparison if columns exist
+    if "gstr3b_output" in df.columns and "gstr2a_input" in df.columns:
+        total_3b = pd.to_numeric(df["gstr3b_output"], errors="coerce").sum()
+        total_2a = pd.to_numeric(df["gstr2a_input"], errors="coerce").sum()
+        mismatch = abs(total_3b - total_2a) / total_3b if total_3b else 0
+        if mismatch > 0.15:
+            return mismatch, [f"High GST mismatch detected: {round(mismatch*100, 2)}% (GSTR-3B vs 2A)"]
+    return 0.0, []
+
+
+def _detect_anomalies(bank_rows: List[dict]) -> List[str]:
+    """Detect circular trading or abnormal spikes in cash flow"""
+    if not bank_rows:
+        return []
+    
+    df = pd.DataFrame(bank_rows)
+    amount_col = "amount" if "amount" in df.columns else df.columns[-1]
+    df[amount_col] = pd.to_numeric(df[amount_col], errors="coerce").fillna(0.0)
+    
+    flags = []
+    # Check for large round-sum transactions (Potential circular trading)
+    round_sums = df[df[amount_col] % 100000 == 0][amount_col]
+    if len(round_sums) > len(df) * 0.2:
+        flags.append("High frequency of round-sum transactions (Potential circular trading)")
+    
+    # Check for sudden spikes (> 3x mean)
+    mean_val = df[amount_col].mean()
+    if mean_val > 0:
+        spikes = df[df[amount_col] > mean_val * 5]
+        if not spikes.empty:
+            flags.append(f"Abnormal cash flow spikes detected ({len(spikes)} instances)")
+            
+    # Indian Banking: Detect round-tripping patterns (Debit followed by Credit of similar amount)
+    # This is a basic heuristic for demonstration
+    for i in range(len(df) - 1):
+        if i > 0:
+            prev_tx = df.iloc[i-1]
+            curr_tx = df.iloc[i]
+            if prev_tx[amount_col] > 500000 and abs(prev_tx[amount_col] - curr_tx[amount_col]) < 5000:
+                flags.append(f"Suspicious round-tripping of ₹{curr_tx[amount_col]} detected")
+                break
+                
+    return flags
+
+
 def _extract_previous_ebitda(text: str) -> float | None:
     if not text:
         return None
@@ -135,15 +186,25 @@ def analyze_financials(
         metrics["debt_to_ebitda"] = None
         missing.append("debt_to_ebitda")
 
-    flags = []
-    if metrics.get("gst_vs_bank_ratio") and metrics["gst_vs_bank_ratio"] > 1.3:
-        flags.append("GST vs bank mismatch suggests revenue inflation")
-    if metrics.get("interest_coverage_ratio") is not None and metrics["interest_coverage_ratio"] < 1.5:
-        flags.append("Weak interest coverage ratio")
-    if metrics.get("dscr") is not None and metrics["dscr"] < 1.2:
-        flags.append("DSCR below comfort")
-    if leverage and leverage > 4:
-        flags.append("High leverage (Debt/EBITDA > 4x)")
+    # MSME Consideration: Indian government grants specific benefits. 
+    # High GST compliance is a strong positive signal for MSME lending.
+    is_msme = company_profile.get("is_msme", False)
+    if is_msme:
+        if gst_turnover > 0 and len(gst_rows) >= 12:
+            flags.append("Strong MSME candidate: Regular GST filing history detected")
+            # Potential score booster in risk engine (to be handled there)
+
+    # Indian Banking specific: Search for common levy/penalty keywords in bank statements
+    levy_count = 0
+    if "description" in df.columns:
+        levy_keywords = ["penal", "levy", "charges", "cheque return", "insufficient fund"]
+        # Convert to series for search
+        desc_series = df["description"].str.lower()
+        for kw in levy_keywords:
+            levy_count += desc_series.str.contains(kw, na=False).sum()
+    
+    if levy_count > 3:
+        flags.append(f"Multiple bank charges/levies detected ({levy_count}): Check for frequent fund shortages")
 
     return {
         "metrics": metrics,
@@ -153,4 +214,5 @@ def analyze_financials(
         "bank_debits": bank_debits,
         "gst_turnover": gst_turnover,
         "interest_expense": interest_expense,
+        "is_msme_verified": is_msme and gst_turnover > 0
     }

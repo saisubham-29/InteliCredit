@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import os
 import uuid
+import math
 from typing import Dict, List
 
 from ai import LLMClient
+from ai.gnn_fraud_detector import run_fraud_analysis
 from cam_generator import generate_cam_json, generate_cam_pdf
 from document_parser import parse_document
 from financial_analyzer import analyze_financials
@@ -24,6 +26,17 @@ except ImportError:
 
 
 SAMPLE_COMPANIES_PATH = os.path.join("sample_data", "companies.json")
+
+
+def _clean_value(val, fallback: float) -> float:
+    """Ensures value is a valid float, not NaN or None"""
+    if val is None:
+        return fallback
+    try:
+        fval = float(val)
+        return fallback if math.isnan(fval) else fval
+    except (ValueError, TypeError):
+        return fallback
 
 
 def load_company_profile(company_id: str) -> Dict[str, object]:
@@ -73,39 +86,46 @@ def load_structured_docs(documents: List[Dict[str, object]]) -> Dict[str, List[d
     return structured
 
 
-def build_recommendation(company: Dict[str, object], financials: Dict[str, object], risk_band: str) -> Dict[str, object]:
+def build_recommendation(company: Dict[str, object], financials: Dict[str, object], total_score: float) -> Dict[str, object]:
     loan_requested = company.get("loan_requested", 0.0)
     collateral_value = company.get("collateral_value", 0.0)
     bank_credits = financials.get("bank_credits", 0.0)
 
+    # PD Calculation (Heuristic based on score)
+    # Higher score = higher risk. 0-25 is Low risk.
+    probability_of_default = min(0.99, round((total_score / 100.0) ** 2, 4))
+    
+    # Risk Grade (A-D)
+    if total_score <= 25: grade = "A"
+    elif total_score <= 45: grade = "B"
+    elif total_score <= 65: grade = "C"
+    else: grade = "D"
+
     eligibility = min(
         loan_requested,
-        collateral_value * 0.7 if collateral_value else loan_requested,
-        (bank_credits / 12) * 6 if bank_credits else loan_requested,
+        collateral_value * 0.75 if collateral_value else loan_requested,
+        (bank_credits / 12) * 8 if bank_credits else loan_requested,
     )
 
-    base_rate = 11.0
-    premium = {
-        "Low": 0.5,
-        "Moderate": 1.5,
-        "High": 3.0,
-        "Very High": 5.0,
-    }.get(risk_band, 2.0)
+    base_rate = 9.5 # Competitive market rate
+    premium = (total_score / 100.0) * 10.0 # Risk premium up to 10%
     interest_rate = round(base_rate + premium, 2)
 
     decision_tag = "Approve"
-    if risk_band == "High":
+    if grade == "C":
         decision_tag = "Approve with Conditions"
-    if risk_band == "Very High":
+    if grade == "D":
         decision_tag = "Reject"
 
-    rationale = "Risk-adjusted pricing based on Five-Cs scoring and collateral cover."
+    rationale = f"Risk Grade {grade} assigned based on Five-Cs score of {total_score}. Interest rate includes a risk premium of {round(premium, 2)}%."
 
     return {
         "eligible_amount": round(eligibility, 2),
         "interest_rate": interest_rate,
         "decision_tag": decision_tag,
         "rationale": rationale,
+        "risk_grade": grade,
+        "probability_of_default": probability_of_default,
     }
 
 
@@ -147,7 +167,14 @@ def run_analysis(
     financials = analyze_financials(structured_docs, parsed_docs, company_profile)
     research = run_research(company_profile)
 
-    # Step 2: Enhanced financial analysis with Gemini (if available)
+    # Step 2: GNN-based Fraud Analysis
+    fraud_signals = run_fraud_analysis(
+        company_id, 
+        company_profile.get("name", "Unknown"),
+        structured_docs.get("bank_statement_csv", [])
+    )
+
+    # Step 3: Enhanced financial analysis with Gemini (if available)
     if ML_ENABLED:
         try:
             gemini = GeminiClient()
@@ -156,31 +183,39 @@ def run_analysis(
         except Exception as e:
             print(f"Gemini financial analysis failed: {e}")
 
-    risk_report = compute_five_cs(financials, research, company_profile, officer_inputs)
+    risk_report = compute_five_cs(financials, research, company_profile, officer_inputs, fraud_signals)
 
-    adjusted_total, adjustments = apply_human_inputs(risk_report["total_score"], officer_inputs)
-    adjusted_total = round(adjusted_total, 2)
+    # Pillar 2: Integrate qualitative user input (e.g., factory at 40% capacity)
+    qualitative_adjustments = []
+    factory_util = officer_inputs.get("factory_utilization_pct")
+    if factory_util is not None and factory_util < 50:
+        # Penalty for underutilization of capacity
+        risk_report["scores"]["capacity"] += 5
+        qualitative_adjustments.append(f"Capacity penalty: Low factory utilization ({factory_util}%)")
+    
+    adjusted_total = round(sum(risk_report["scores"].values()), 2)
     risk_report["total_score"] = adjusted_total
     risk_report["risk_band"] = classify_risk_band(adjusted_total)
-    if adjustments:
-        risk_report.setdefault("drivers", []).extend(adjustments)
+    if qualitative_adjustments:
+        risk_report.setdefault("drivers", []).extend(qualitative_adjustments)
 
-    # Step 3: ML-based credit decisioning (if enabled)
+    # Step 4: ML-based credit decisioning (if enabled)
     if ML_ENABLED:
         try:
             decision_engine = CreditDecisionEngine()
             
             # Prepare features for ML model
+            metrics = financials.get('metrics', {})
             ml_features = {
-                'current_ratio': financials.get('current_ratio', 1.5),
-                'debt_to_equity': financials.get('debt_to_equity', 1.0),
-                'interest_coverage': financials.get('interest_coverage', 3.0),
-                'roe': financials.get('roe', 0.15),
-                'operating_margin': financials.get('operating_margin', 0.10),
-                'revenue_growth': financials.get('revenue_growth', 0.10),
-                'management_score': research.get('ai_analysis', {}).get('management_score', 5.0) if isinstance(research.get('ai_analysis'), dict) else 5.0,
+                'current_ratio': _clean_value(metrics.get('current_ratio'), 1.5),
+                'debt_to_equity': _clean_value(metrics.get('debt_to_ebitda'), 1.0),
+                'interest_coverage': _clean_value(metrics.get('interest_coverage_ratio'), 3.0),
+                'roe': _clean_value(metrics.get('roe'), 0.15),
+                'operating_margin': _clean_value(metrics.get('ebitda_margin'), 0.10),
+                'revenue_growth': _clean_value(metrics.get('revenue_growth'), 0.10),
+                'management_score': _clean_value(research.get('ai_analysis', {}).get('management_score'), 5.0) if isinstance(research.get('ai_analysis'), dict) else 5.0,
                 'sector_risk': 0.3 if research.get('sector_outlook', '').lower() in ['negative', 'cautious'] else 0.1,
-                'collateral_coverage': company_profile.get('collateral_value', 0) / max(company_profile.get('loan_requested', 1), 1)
+                'collateral_coverage': (company_profile.get('collateral_value') or 0.0) / max(company_profile.get('loan_requested') or 1.0, 1.0)
             }
             
             # Get ML-based lending decision
@@ -198,21 +233,25 @@ def run_analysis(
                 "conditions": ml_decision['conditions'],
                 "probability_of_default": ml_decision['probability_of_default'],
                 "risk_class": ml_decision['risk_class'],
-                "ml_confidence": ml_decision['ml_confidence']
+                "ml_confidence": ml_decision['ml_confidence'],
+                "ml_explanation": ml_decision.get('ml_explanation') # Added XAI
             }
         except Exception as e:
             print(f"ML decisioning failed: {e}. Using basic recommendation.")
             risk_report["recommendation"] = build_recommendation(
-                company_profile, financials, risk_report["risk_band"]
+                company_profile, financials, risk_report["total_score"]
             )
     else:
         risk_report["recommendation"] = build_recommendation(
-            company_profile, financials, risk_report["risk_band"]
+            company_profile, financials, risk_report["total_score"]
         )
 
     risk_report["missing_data_warnings"] = list(
         set(financials.get("missing", []) + research.get("missing", []))
     )
+    
+    # Add fraud signals to the report
+    risk_report["fraud_analysis"] = fraud_signals
 
     extraction_confidence = {}
     if "annual_report" in parsed_docs:
@@ -228,7 +267,7 @@ def run_analysis(
             "Annual report",
             "News dataset",
             "Web Research" if research.get("mode") == "enhanced" else None,
-            "Databricks" if ML_ENABLED and databricks_data.get("source") == "databricks" else None
+            "Databricks" if ML_ENABLED else None
         ],
         "extraction_confidence": extraction_confidence,
         "document_excerpts": {
