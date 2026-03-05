@@ -30,8 +30,8 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-# Expose backend port
-EXPOSE 8000
+# Expose backend port (Railway overrides this with $PORT at runtime)
+EXPOSE ${PORT:-8000}
 
-# Start FastAPI with Gunicorn
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "api.main:app", "--bind", "0.0.0.0:8000"]
+# Start FastAPI with Gunicorn using shell form so Railway's $PORT is expanded
+CMD gunicorn -k uvicorn.workers.UvicornWorker api.main:app --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120
