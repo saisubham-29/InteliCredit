@@ -7,9 +7,32 @@ from typing import Dict, Tuple
 from pypdf import PdfReader
 
 FIELD_PATTERNS = {
-    "revenue": [r"Revenue\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr", r"Total Revenue\s*[:\-]?\s*₹?\s*([0-9,.]+)"],
-    "ebitda": [r"EBITDA\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr", r"EBITDA\s*Margin\s*[:\-]?\s*([0-9,.]+)%"],
-    "debt": [r"Total Debt\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr", r"Borrowings\s*[:\-]?\s*₹?\s*([0-9,.]+)"],
+    "revenue": [
+        r"Revenue\s*from\s*Operations\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"Total\s*Revenue\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"Revenue\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"Turnover\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr"
+    ],
+    "ebitda": [
+        r"EBITDA\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"Operating\s*Profit\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"EBITDA\s*Margin\s*[:\-]?\s*([0-9,.]+)%"
+    ],
+    "pat": [
+        r"Profit\s*After\s*Tax\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"Net\s*Profit\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"PAT\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr"
+    ],
+    "debt": [
+        r"Total\s*Debt\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"Total\s*Borrowings\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"Long\s*Term\s*Borrowings\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr"
+    ],
+    "net_worth": [
+        r"Net\s*Worth\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"Shareholder's?\s*Funds\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr",
+        r"Total\s*Equity\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr"
+    ],
     "auditor_remarks": [r"Auditor(?:'s)?\s*Remarks\s*[:\-]?\s*(.+)"],
     "contingent_liabilities": [r"Contingent\s*Liabilities\s*[:\-]?\s*₹?\s*([0-9,.]+)\s*Cr"],
 }
@@ -77,32 +100,30 @@ def extract_key_fields(text: str) -> Dict[str, Dict[str, object]]:
             if match:
                 match_value = match.group(1).strip()
                 break
+        
         if match_value is None:
-            results[field] = {
-                "value": None,
-                "confidence": 0.0,
-                "evidence": None,
-            }
+            results[field] = {"value": None, "confidence": 0.0, "evidence": None}
             continue
 
-        if field in {"auditor_remarks"}:
-            results[field] = {
-                "value": match_value[:200],
-                "confidence": 0.7,
-                "evidence": match_value[:200],
-            }
+        if field == "auditor_remarks":
+            results[field] = {"value": match_value[:500], "confidence": 0.9, "evidence": match_value}
         else:
             try:
                 numeric = _normalize_number(match_value)
-                confidence = 0.8
+                # Deterministic validation logic
+                confidence = 0.95 if "Cr" in text[match.start():match.end()+10] else 0.85
+                results[field] = {"value": numeric, "confidence": confidence, "evidence": match_value}
             except Exception:
-                numeric = None
-                confidence = 0.4
-            results[field] = {
-                "value": numeric,
-                "confidence": confidence,
-                "evidence": match_value,
-            }
+                results[field] = {"value": None, "confidence": 0.0, "evidence": match_value}
+    
+    # Cross-field validation (Deterministic constraint)
+    rev = results.get("revenue", {}).get("value")
+    pat = results.get("pat", {}).get("value")
+    if rev and pat and pat > rev:
+        # Potential hallucination/mis-extraction: PAT cannot exceed Revenue
+        results["pat"]["confidence"] *= 0.1
+        results["pat"]["warning"] = "PAT exceeds Revenue - likely extraction error"
+        
     return results
 
 

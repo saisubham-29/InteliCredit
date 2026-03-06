@@ -132,39 +132,64 @@ def _score_conditions(research: Dict[str, object]) -> Tuple[float, List[str]]:
     return _clamp(score, 0, 15), drivers
 
 
+def _score_fraud(fraud_analysis: Dict[str, object]) -> Tuple[float, List[str]]:
+    score = 0.0
+    drivers = []
+    risk_score = fraud_analysis.get("fraud_risk_score", 0.0)
+    
+    if risk_score > 0.7:
+        score += 10
+        drivers.append("Critical fraud risk detected by GNN engine")
+    elif risk_score > 0.4:
+        score += 5
+        drivers.append("Elevated fraud risk patterns identified")
+    
+    patterns = fraud_analysis.get("detected_patterns", [])
+    if patterns:
+        drivers.extend([f"Fraud signal: {p}" for p in patterns[:2]])
+        
+    return _clamp(score, 0, 10), drivers
+
+
 def compute_five_cs(
     financials: Dict[str, object],
     research: Dict[str, object],
     company_profile: Dict[str, object],
     officer_inputs: Dict[str, object],
+    fraud_analysis: Dict[str, object] | None = None,
 ) -> Dict[str, object]:
     character, character_drivers = _score_character(research, officer_inputs)
     capacity, capacity_drivers = _score_capacity(financials)
     capital, capital_drivers = _score_capital(financials, company_profile)
     collateral, collateral_drivers = _score_collateral(financials)
     conditions, conditions_drivers = _score_conditions(research)
+    
+    fraud, fraud_drivers = _score_fraud(fraud_analysis or {})
 
-    total_score = round(character + capacity + capital + collateral + conditions, 2)
+    # Hackathon Pillar 3: Weighted 5Cs Formula
+    # Capacity (30%), Character (20%), Capital (15%), Collateral (15%), Conditions (10%), Fraud/Integrity (10%)
+    weighted_scores = {
+        "capacity": (capacity / 30.0) * 30.0,
+        "character": (character / 20.0) * 20.0,
+        "capital": (capital / 20.0) * 15.0,
+        "collateral": (collateral / 15.0) * 15.0,
+        "conditions": (conditions / 15.0) * 10.0,
+        "integrity_fraud": (fraud / 10.0) * 10.0,
+    }
+
+    total_score = round(sum(weighted_scores.values()), 2)
     band = classify_risk_band(total_score)
 
-    top_drivers = list({
-        *character_drivers,
-        *capacity_drivers,
-        *capital_drivers,
-        *collateral_drivers,
-        *conditions_drivers,
-        *financials.get("flags", []),
-    })
-
     return {
-        "scores": {
-            "character": character,
-            "capacity": capacity,
-            "capital": capital,
-            "collateral": collateral,
-            "conditions": conditions,
+        "scores": weighted_scores,
+        "component_details": {
+            "capacity": {"score": weighted_scores["capacity"], "reason": ", ".join(capacity_drivers) or "Adequate cash flow"},
+            "character": {"score": weighted_scores["character"], "reason": ", ".join(character_drivers) or "Clean track record"},
+            "capital": {"score": weighted_scores["capital"], "reason": ", ".join(capital_drivers) or "Sufficient equity"},
+            "collateral": {"score": weighted_scores["collateral"], "reason": ", ".join(collateral_drivers) or "Standard coverage"},
+            "conditions": {"score": weighted_scores["conditions"], "reason": ", ".join(conditions_drivers) or "Stable sector outlook"},
         },
         "total_score": total_score,
         "risk_band": band,
-        "drivers": top_drivers,
+        "drivers": list(set(character_drivers + capacity_drivers + capital_drivers + collateral_drivers + conditions_drivers)),
     }

@@ -27,18 +27,24 @@ def generate_cam_json(
     risk_report: Dict[str, object],
     officer_inputs: Dict[str, object],
 ) -> Dict[str, object]:
+    recommendation = risk_report.get("recommendation", {})
     return {
         "generated_at": datetime.utcnow().isoformat(),
         "company": company_profile,
         "executive_summary": {
             "risk_band": risk_report.get("risk_band"),
+            "risk_grade": recommendation.get("risk_grade", "N/A"),
+            "pd": recommendation.get("probability_of_default", 0.0),
             "total_score": risk_report.get("total_score"),
-            "recommendation": risk_report.get("recommendation"),
+            "recommendation": recommendation,
         },
         "financial_analysis": financials,
         "research": research,
-        "five_cs": risk_report.get("scores"),
+        "five_cs": risk_report.get("component_details", {}),
         "risk_drivers": risk_report.get("drivers"),
+        "fraud_analysis": risk_report.get("fraud_analysis", {}),
+        "ml_explanation": recommendation.get("ml_explanation", {}),
+        "ml_confidence": recommendation.get("ml_confidence", 0.85),
         "officer_inputs": officer_inputs,
     }
 
@@ -56,6 +62,9 @@ def _render_html(cam_json: Dict[str, object]) -> str:
         financials=cam_json.get("financial_analysis", {}),
         research=cam_json.get("research", {}),
         five_cs=cam_json.get("five_cs", {}),
+        fraud_analysis=cam_json.get("fraud_analysis", {}),
+        ml_explanation=cam_json.get("ml_explanation", {}),
+        ml_confidence=cam_json.get("ml_confidence", 0.85),
         report_date=datetime.now().strftime("%d %b %Y"),
         format_money=_format_money_cr,
     )

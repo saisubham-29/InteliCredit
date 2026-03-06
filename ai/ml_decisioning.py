@@ -96,7 +96,7 @@ class CreditDecisionEngine:
             return 0.15, "Medium"
     
     def calculate_credit_limit(self, features: Dict[str, float], 
-                              requested_limit: Optional[float] = None) -> Dict[str, object]:
+                               requested_limit: Optional[float] = None) -> Dict[str, object]:
         """Calculate recommended credit limit"""
         X = self._prepare_features(features)
         
@@ -209,9 +209,51 @@ class CreditDecisionEngine:
             'recommended_limit': limit_decision,
             'pricing': pricing,
             'conditions': self._generate_conditions(pd, features, limit_decision),
-            'ml_confidence': limit_decision['confidence']
+            'ml_confidence': limit_decision['confidence'],
+            'ml_explanation': self.get_local_explanation(features, pd, risk_class)
         }
-    
+
+    def get_local_explanation(self, features: Dict[str, float], pd: float, risk_class: str) -> Dict[str, object]:
+        """Generate XAI explanation for specific decision"""
+        # Feature names for mapping
+        feature_names = [
+            'current_ratio', 'debt_to_equity', 'interest_coverage', 'roe', 
+            'operating_margin', 'revenue_growth', 'management_score', 'sector_risk'
+        ]
+        
+        # Calculate feature importance for this specific model (global importance as proxy)
+        importance = {}
+        if self.pd_model and hasattr(self.pd_model, 'feature_importances_'):
+            importances = self.pd_model.feature_importances_
+            importance = dict(zip(feature_names, [round(float(i), 3) for i in importances]))
+        
+        # Identify top drivers for this specific case
+        drivers = []
+        if features.get('current_ratio', 1.0) < 1.1:
+            drivers.append("Weak liquidity position (Current Ratio < 1.1)")
+        elif features.get('current_ratio', 1.0) > 2.0:
+            drivers.append("Strong liquidity buffer")
+            
+        if features.get('debt_to_equity', 2.0) > 3.0:
+            drivers.append("High financial leverage (D/E > 3.0)")
+            
+        if features.get('interest_coverage', 2.0) < 1.5:
+            drivers.append("Thin interest servicing capacity")
+            
+        if features.get('management_score', 5.0) > 8.0:
+            drivers.append("Exceptional management track record")
+            
+        # Decision rationale summary
+        direction = "positive" if pd < 0.2 else "cautionary"
+        summary = f"The {risk_class} risk classification is primarily driven by {drivers[0] if drivers else 'balanced financial metrics'}."
+        
+        return {
+            'feature_importance': dict(sorted(importance.items(), key=lambda x: x[1], reverse=True)),
+            'key_drivers': drivers,
+            'decision_summary': summary,
+            'sentiment': direction
+        }
+
     def _prepare_features(self, features: Dict[str, float]) -> np.ndarray:
         """Prepare feature vector for ML models"""
         feature_vector = [
@@ -257,6 +299,7 @@ class CreditDecisionEngine:
     
     def _generate_conditions(self, pd: float, features: Dict, limit_decision: Dict) -> List[str]:
         """Generate lending conditions"""
+        # Standard lending conditions based on PD and financial risk
         conditions = []
         
         if pd > 0.20:
